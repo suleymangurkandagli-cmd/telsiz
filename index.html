@@ -186,10 +186,17 @@
           return;
         }
 
+        if (!res.ok) {
+          const text = await res.text();
+          authError.textContent = `Sunucu hatası ${res.status}: ${text}`;
+          authBtn.disabled = false;
+          return;
+        }
         const { token, url } = await res.json();
         await joinRoom(token, url);
       } catch (e) {
-        authError.textContent = 'Bağlantı hatası: ' + e.message;
+        authError.textContent = 'Hata: ' + e.message;
+        console.error(e);
         authBtn.disabled = false;
       }
     }
