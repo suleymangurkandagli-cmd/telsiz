@@ -44,7 +44,8 @@ wss.on('connection', (ws) => {
 
     // Şifre doğrulama
     if (msg.type === 'auth') {
-      if (msg.password === CHANNEL_PASSWORD) {
+      console.log(`Auth denemesi: "${msg.password}" === "${CHANNEL_PASSWORD}" → ${msg.password.trim() === CHANNEL_PASSWORD.trim()}`);
+      if (msg.password.trim() === CHANNEL_PASSWORD.trim()) {
         ws.authenticated = true;
         clients.add(ws);
         ws.send(JSON.stringify({ type: 'auth', success: true }));
