@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Telsiz" />
+  <link rel="manifest" href="/manifest.json" />
   <title>Telsiz</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,29 +21,15 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      min-height: 100dvh;
       gap: 24px;
       padding: 20px;
     }
 
-    h1 {
-      font-size: 2rem;
-      letter-spacing: 4px;
-      color: #f5a623;
-      text-transform: uppercase;
-    }
+    h1 { font-size: 2rem; letter-spacing: 4px; color: #f5a623; text-transform: uppercase; }
 
-    /* --- Şifre ekranı --- */
-    #auth-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-
-    #auth-screen p {
-      color: #a0a0c0;
-      font-size: 0.95rem;
-    }
+    #auth-screen { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    #auth-screen p { color: #a0a0c0; font-size: 0.95rem; }
 
     #auth-screen input {
       background: #16213e;
@@ -53,13 +44,8 @@
       width: 240px;
       transition: border-color 0.2s;
     }
-
     #auth-screen input:focus { border-color: #f5a623; }
-
-    #auth-screen input.shake {
-      animation: shake 0.4s ease;
-      border-color: #f87171;
-    }
+    #auth-screen input.shake { animation: shake 0.4s ease; border-color: #f87171; }
 
     @keyframes shake {
       0%,100% { transform: translateX(0); }
@@ -70,91 +56,54 @@
     }
 
     #auth-btn {
-      background: #f5a623;
-      border: none;
-      border-radius: 10px;
-      color: #1a1a2e;
-      cursor: pointer;
-      font-size: 1rem;
-      font-weight: bold;
-      letter-spacing: 1px;
-      padding: 12px 32px;
+      background: #f5a623; border: none; border-radius: 10px;
+      color: #1a1a2e; cursor: pointer; font-size: 1rem;
+      font-weight: bold; letter-spacing: 1px; padding: 12px 32px;
       transition: background 0.2s;
     }
-
     #auth-btn:hover { background: #ffc14d; }
+    #auth-error { color: #f87171; font-size: 0.85rem; min-height: 1.2em; }
 
-    #auth-error {
-      color: #f87171;
-      font-size: 0.85rem;
-      min-height: 1.2em;
-    }
-
-    /* --- Ana ekran --- */
     #main-screen { display: none; flex-direction: column; align-items: center; gap: 24px; }
 
     #status-bar {
-      background: #16213e;
-      border: 1px solid #0f3460;
-      border-radius: 12px;
-      padding: 12px 24px;
-      font-size: 0.9rem;
-      color: #a0a0c0;
-      text-align: center;
-      min-width: 260px;
+      background: #16213e; border: 1px solid #0f3460; border-radius: 12px;
+      padding: 12px 24px; font-size: 0.9rem; color: #a0a0c0;
+      text-align: center; min-width: 260px;
     }
-
     #status-bar span { font-weight: bold; color: #f5a623; }
 
     #indicator {
-      width: 200px;
-      height: 200px;
-      border-radius: 50%;
+      width: 200px; height: 200px; border-radius: 50%;
       background: radial-gradient(circle at 40% 35%, #2a2a4a, #0d0d1a);
       border: 4px solid #0f3460;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 8px;
       transition: box-shadow 0.2s, border-color 0.2s;
-      font-size: 0.85rem;
-      color: #7070a0;
+      font-size: 0.85rem; color: #7070a0;
     }
-
     #indicator.receiving {
       border-color: #4ade80;
-      box-shadow: 0 0 40px rgba(74, 222, 128, 0.5);
+      box-shadow: 0 0 40px rgba(74,222,128,0.5);
       color: #4ade80;
     }
-
     #indicator svg { width: 56px; height: 56px; fill: #4a4a7a; transition: fill 0.2s; }
     #indicator.receiving svg { fill: #4ade80; }
 
     #ptt-btn {
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      border: none;
+      width: 140px; height: 140px; border-radius: 50%; border: none;
       background: radial-gradient(circle at 40% 35%, #e05c00, #a33c00);
-      color: white;
-      font-size: 1rem;
-      font-weight: bold;
-      letter-spacing: 1px;
+      color: white; font-size: 1rem; font-weight: bold; letter-spacing: 1px;
       cursor: pointer;
       box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
       transition: transform 0.1s, box-shadow 0.1s;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
+      user-select: none; -webkit-user-select: none; touch-action: none;
     }
-
     #ptt-btn:active, #ptt-btn.active {
       transform: scale(0.93);
       box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 2px 6px rgba(0,0,0,0.4);
       background: radial-gradient(circle at 40% 35%, #ff7a20, #c04a00);
     }
-
     #ptt-btn:disabled {
       background: radial-gradient(circle at 40% 35%, #444, #222);
       cursor: not-allowed;
@@ -163,18 +112,10 @@
     #label { font-size: 0.8rem; color: #6060a0; text-align: center; }
 
     #log {
-      background: #0d1b2a;
-      border: 1px solid #1a3050;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 0.78rem;
-      color: #6080a0;
-      width: 300px;
-      max-height: 100px;
-      overflow-y: auto;
-      font-family: monospace;
+      background: #0d1b2a; border: 1px solid #1a3050; border-radius: 8px;
+      padding: 10px 14px; font-size: 0.78rem; color: #6080a0;
+      width: 300px; max-height: 100px; overflow-y: auto; font-family: monospace;
     }
-
     #log p { margin-bottom: 3px; }
     #log p.ok   { color: #4ade80; }
     #log p.err  { color: #f87171; }
@@ -184,7 +125,6 @@
 <body>
   <h1>📻 Telsiz</h1>
 
-  <!-- Şifre ekranı -->
   <div id="auth-screen">
     <p>Kanala katılmak için şifreyi gir</p>
     <input id="pw-input" type="password" placeholder="••••••••" maxlength="32" />
@@ -192,7 +132,6 @@
     <div id="auth-error"></div>
   </div>
 
-  <!-- Ana ekran -->
   <div id="main-screen">
     <div id="status-bar">
       Bağlantı: <span id="conn-status">Bağlanıyor...</span> &nbsp;|&nbsp;
@@ -213,17 +152,22 @@
   </div>
 
   <script>
-    const authScreen  = document.getElementById('auth-screen');
-    const mainScreen  = document.getElementById('main-screen');
-    const pwInput     = document.getElementById('pw-input');
-    const authBtn     = document.getElementById('auth-btn');
-    const authError   = document.getElementById('auth-error');
-    const btn         = document.getElementById('ptt-btn');
-    const connStatus  = document.getElementById('conn-status');
-    const userCount   = document.getElementById('user-count');
-    const indicator   = document.getElementById('indicator');
-    const rxLabel     = document.getElementById('rx-label');
-    const logEl       = document.getElementById('log');
+    // --- Service Worker kaydı ---
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    const authScreen = document.getElementById('auth-screen');
+    const mainScreen = document.getElementById('main-screen');
+    const pwInput    = document.getElementById('pw-input');
+    const authBtn    = document.getElementById('auth-btn');
+    const authError  = document.getElementById('auth-error');
+    const btn        = document.getElementById('ptt-btn');
+    const connStatus = document.getElementById('conn-status');
+    const userCount  = document.getElementById('user-count');
+    const indicator  = document.getElementById('indicator');
+    const rxLabel    = document.getElementById('rx-label');
+    const logEl      = document.getElementById('log');
 
     function log(msg, cls = '') {
       const p = document.createElement('p');
@@ -235,87 +179,22 @@
     // --- Web Audio ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    // Telsiz cızırtısı: kısa beyaz gürültü + bant geçiren filtre
+    // Cızırtı sesi
     function playStatic(duration = 0.18) {
       const bufSize = audioCtx.sampleRate * duration;
       const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
-
-      const src = audioCtx.createBufferSource();
+      const src  = audioCtx.createBufferSource();
       src.buffer = buf;
-
-      // Bant geçiren filtre → telsiz frekans aralığı
       const bp = audioCtx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = 1800;
-      bp.Q.value = 0.8;
-
-      // Zarf: hızlı atak, hızlı azalma
+      bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
       const gain = audioCtx.createGain();
       gain.gain.setValueAtTime(0, audioCtx.currentTime);
       gain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.03);
       gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
-
-      src.connect(bp);
-      bp.connect(gain);
-      gain.connect(audioCtx.destination);
+      src.connect(bp); bp.connect(gain); gain.connect(audioCtx.destination);
       src.start();
-    }
-
-    // --- Sıralı ses kuyruğu ---
-    let nextPlayTime = 0;
-    let audioChunks = [];
-    let playInterval = null;
-
-    function startAudioQueue() {
-      nextPlayTime = audioCtx.currentTime + 0.05;
-      audioChunks = [];
-      if (playInterval) clearInterval(playInterval);
-      playInterval = setInterval(flushQueue, 300);
-    }
-
-    function stopAudioQueue() {
-      if (playInterval) { clearInterval(playInterval); playInterval = null; }
-      if (audioChunks.length > 0) flushQueue();
-    }
-
-    function queueChunk(arrayBuffer) {
-      audioChunks.push(arrayBuffer);
-    }
-
-    async function flushQueue() {
-      if (audioChunks.length === 0) return;
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      audioChunks = [];
-      const ab = await blob.arrayBuffer();
-      try {
-        const decoded = await audioCtx.decodeAudioData(ab);
-        const source = audioCtx.createBufferSource();
-        source.buffer = decoded;
-
-        const wave = audioCtx.createWaveShaper();
-        wave.curve = makeDistortionCurve(30);
-        wave.oversample = '2x';
-
-        const bp = audioCtx.createBiquadFilter();
-        bp.type = 'bandpass';
-        bp.frequency.value = 2000;
-        bp.Q.value = 0.6;
-
-        source.connect(wave);
-        wave.connect(bp);
-        bp.connect(audioCtx.destination);
-
-        const when = Math.max(nextPlayTime, audioCtx.currentTime + 0.02);
-        source.start(when);
-        nextPlayTime = when + decoded.duration;
-      } catch (e) { /* decode hatası */ }
-    }
-
-    // Gelen ses chunk'ını kuyruğa ekle
-    function playAudio(arrayBuffer) {
-      queueChunk(arrayBuffer);
     }
 
     function makeDistortionCurve(amount) {
@@ -327,18 +206,54 @@
       return curve;
     }
 
+    // --- Gelen ses: chunk biriktir, talking:false gelince tümünü decode et & çal ---
+    let incomingChunks = [];
+    let receivedMime   = 'audio/webm';
+
+    function onAudioChunk(arrayBuffer) {
+      incomingChunks.push(arrayBuffer);
+    }
+
+    async function flushAndPlay() {
+      if (incomingChunks.length === 0) return;
+      const blob = new Blob(incomingChunks, { type: receivedMime });
+      incomingChunks = [];
+      try {
+        const ab      = await blob.arrayBuffer();
+        const decoded = await audioCtx.decodeAudioData(ab);
+        const src     = audioCtx.createBufferSource();
+        src.buffer    = decoded;
+        const wave    = audioCtx.createWaveShaper();
+        wave.curve    = makeDistortionCurve(25);
+        wave.oversample = '2x';
+        const bp      = audioCtx.createBiquadFilter();
+        bp.type       = 'bandpass';
+        bp.frequency.value = 2200;
+        bp.Q.value    = 0.5;
+        const gain    = audioCtx.createGain();
+        gain.gain.value = 1.4;
+        src.connect(wave);
+        wave.connect(bp);
+        bp.connect(gain);
+        gain.connect(audioCtx.destination);
+        src.start(0);
+      } catch (e) {
+        log('Ses decode hatası: ' + e.message, 'err');
+      }
+    }
+
     function setReceiving(state) {
       if (state) {
-        startAudioQueue();
+        incomingChunks = [];
         indicator.classList.add('receiving');
         rxLabel.textContent = 'Alıyor...';
         playStatic(0.15);
         log('Karşı taraf konuşuyor', 'info');
       } else {
-        stopAudioQueue();
-        playStatic(0.12);
         indicator.classList.remove('receiving');
         rxLabel.textContent = 'Bekleniyor';
+        playStatic(0.12);
+        flushAndPlay(); // konuşma bitti → sesi çal
       }
     }
 
@@ -350,21 +265,18 @@
       ws = new WebSocket(`${proto}://${location.host}`);
       ws.binaryType = 'arraybuffer';
 
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'auth', password }));
-      };
+      ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', password }));
 
       ws.onmessage = async (event) => {
         if (typeof event.data === 'string') {
           const msg = JSON.parse(event.data);
-
           if (msg.type === 'auth') {
             if (msg.success) {
               authScreen.style.display = 'none';
               mainScreen.style.display = 'flex';
-              connStatus.textContent = 'Bağlandı';
-              connStatus.style.color = '#4ade80';
-              btn.disabled = false;
+              connStatus.textContent   = 'Bağlandı';
+              connStatus.style.color   = '#4ade80';
+              btn.disabled             = false;
               log('Kanala katıldı', 'ok');
             } else {
               authError.textContent = 'Şifre yanlış!';
@@ -372,21 +284,18 @@
               setTimeout(() => pwInput.classList.remove('shake'), 500);
               ws.close();
             }
-            return;
-          }
-
-          if (msg.type === 'info')    { userCount.textContent = msg.count; return; }
-          if (msg.type === 'talking') { setReceiving(msg.state); return; }
+          } else if (msg.type === 'info')    { userCount.textContent = msg.count; }
+            else if (msg.type === 'talking') { setReceiving(msg.state); }
           return;
         }
-        playAudio(event.data);
+        onAudioChunk(event.data);
       };
 
       ws.onclose = () => {
         connStatus.textContent = 'Kesildi';
         connStatus.style.color = '#f87171';
-        btn.disabled = true;
-        log('Bağlantı kesildi', 'err');
+        btn.disabled           = true;
+        log('Bağlantı kesildi — sayfa yenile', 'err');
       };
 
       ws.onerror = () => log('Bağlantı hatası', 'err');
@@ -401,11 +310,11 @@
     }
 
     authBtn.addEventListener('click', tryAuth);
-    pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryAuth(); });
+    pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(); });
 
     // --- PTT ---
     let mediaRecorder = null;
-    let stream = null;
+    let stream        = null;
 
     async function startTalking() {
       if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -418,21 +327,26 @@
         return;
       }
 
-      const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg'];
-      const mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+      const mimes = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg'];
+      const mime  = mimes.find(m => MediaRecorder.isTypeSupported(m)) || '';
       mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
 
-      mediaRecorder.ondataavailable = (e) => {
+      mediaRecorder.ondataavailable = e => {
         if (e.data && e.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
           ws.send(e.data);
         }
       };
 
-      mediaRecorder.start(250);
+      mediaRecorder.start(200);
       btn.classList.add('active');
       btn.textContent = 'KONUŞUYOR';
       ws.send(JSON.stringify({ type: 'talking', state: true }));
       log('Konuşma başladı');
+
+      // Ekran kapanmasın (mobil)
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').catch(() => {});
+      }
     }
 
     function stopTalking() {
@@ -442,22 +356,24 @@
       btn.classList.remove('active');
       btn.textContent = 'KONUŞ';
       playStatic(0.12);
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'talking', state: false }));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'talking', state: false }));
+      }
       log('Konuşma bitti');
     }
 
-    btn.addEventListener('mousedown', startTalking);
-    btn.addEventListener('mouseup', stopTalking);
+    btn.addEventListener('mousedown',  startTalking);
+    btn.addEventListener('mouseup',    stopTalking);
     btn.addEventListener('mouseleave', () => { if (mediaRecorder) stopTalking(); });
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); });
-    btn.addEventListener('touchend',   (e) => { e.preventDefault(); stopTalking(); });
+    btn.addEventListener('touchstart', e => { e.preventDefault(); startTalking(); });
+    btn.addEventListener('touchend',   e => { e.preventDefault(); stopTalking(); });
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', e => {
       if (e.code === 'Space' && !e.repeat && !btn.disabled && mainScreen.style.display !== 'none') {
         e.preventDefault(); startTalking();
       }
     });
-    document.addEventListener('keyup', (e) => {
+    document.addEventListener('keyup', e => {
       if (e.code === 'Space') { e.preventDefault(); if (mediaRecorder) stopTalking(); }
     });
   </script>

@@ -6,30 +6,32 @@ const path = require('path');
 const PORT = process.env.PORT || 3000;
 const CHANNEL_PASSWORD = process.env.CHANNEL_PASSWORD || 'telsiz123';
 
+const MIME = {
+  '.html': 'text/html',
+  '.json': 'application/json',
+  '.js':   'application/javascript',
+  '.png':  'image/png',
+};
+
 const httpServer = http.createServer((req, res) => {
-  if (req.url === '/' || req.url === '/index.html') {
-    const filePath = path.join(__dirname, 'index.html');
-    fs.readFile(filePath, (err, data) => {
-      if (err) { res.writeHead(404); res.end('Not found'); return; }
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(data);
-    });
-  } else {
-    res.writeHead(404);
-    res.end('Not found');
-  }
+  const url = req.url === '/' ? '/index.html' : req.url;
+  const ext = path.extname(url);
+  const filePath = path.join(__dirname, url);
+
+  fs.readFile(filePath, (err, data) => {
+    if (err) { res.writeHead(404); res.end('Not found'); return; }
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'text/plain' });
+    res.end(data);
+  });
 });
 
 const wss = new WebSocket.Server({ server: httpServer });
-
-// Sadece doğrulanmış clientlar
 const clients = new Set();
 
 wss.on('connection', (ws) => {
   ws.authenticated = false;
 
   ws.on('message', (data, isBinary) => {
-    // Binary mesaj: ses verisi (sadece authenticated clientlardan kabul et)
     if (isBinary) {
       if (!ws.authenticated) return;
       for (const client of clients) {
@@ -42,9 +44,7 @@ wss.on('connection', (ws) => {
 
     const msg = JSON.parse(data.toString());
 
-    // Şifre doğrulama
     if (msg.type === 'auth') {
-      console.log(`Auth denemesi: "${msg.password}" === "${CHANNEL_PASSWORD}" → ${msg.password.trim() === CHANNEL_PASSWORD.trim()}`);
       if (msg.password.trim() === CHANNEL_PASSWORD.trim()) {
         ws.authenticated = true;
         clients.add(ws);
