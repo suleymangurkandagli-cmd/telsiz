@@ -165,6 +165,10 @@
       }
     }
 
+    // Kayıtlı şifreyle otomatik bağlan
+    const savedPw = localStorage.getItem('telsiz_pw');
+    if (savedPw) { pwInput.value = savedPw; setTimeout(tryAuth, 100); }
+
     async function tryAuth() {
       const password = pwInput.value.trim();
       if (!password) return;
@@ -179,6 +183,7 @@
         });
 
         if (res.status === 401) {
+          localStorage.removeItem('telsiz_pw');
           authError.textContent = 'Şifre yanlış!';
           pwInput.classList.add('shake');
           setTimeout(() => pwInput.classList.remove('shake'), 500);
@@ -199,6 +204,7 @@
           authBtn.disabled = false;
           return;
         }
+        localStorage.setItem('telsiz_pw', password);
         await joinRoom(data.token, data.url);
       } catch (e) {
         authError.textContent = 'Hata: ' + e.message;
