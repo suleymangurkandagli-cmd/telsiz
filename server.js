@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
+const CHANNEL_PASSWORD = process.env.CHANNEL_PASSWORD || 'telsiz123';
 
 const httpServer = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/index.html') {
@@ -21,58 +22,71 @@ const httpServer = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server: httpServer });
 
+// Sadece doğrulanmış clientlar
 const clients = new Set();
 
 wss.on('connection', (ws) => {
-  clients.add(ws);
-  console.log(`Yeni bağlantı. Toplam: ${clients.size}`);
-
-  // Tüm clientlara bağlı kullanıcı sayısını bildir
-  broadcastInfo();
+  ws.authenticated = false;
 
   ws.on('message', (data, isBinary) => {
-    // Metin mesajı mı (kontrol) yoksa binary (ses) mi?
-    if (!isBinary) {
-      const msg = JSON.parse(data.toString());
-      if (msg.type === 'talking') {
-        // Diğer clientlara "şu an konuşuyor" bilgisi gönder
-        for (const client of clients) {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'talking', state: msg.state }));
-          }
+    // Binary mesaj: ses verisi (sadece authenticated clientlardan kabul et)
+    if (isBinary) {
+      if (!ws.authenticated) return;
+      for (const client of clients) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+          client.send(data, { binary: true });
         }
       }
       return;
     }
 
-    // Binary ses verisini diğer clientlara ilet
-    for (const client of clients) {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(data, { binary: true });
+    const msg = JSON.parse(data.toString());
+
+    // Şifre doğrulama
+    if (msg.type === 'auth') {
+      if (msg.password === CHANNEL_PASSWORD) {
+        ws.authenticated = true;
+        clients.add(ws);
+        ws.send(JSON.stringify({ type: 'auth', success: true }));
+        console.log(`Kullanıcı doğrulandı. Toplam: ${clients.size}`);
+        broadcastInfo();
+      } else {
+        ws.send(JSON.stringify({ type: 'auth', success: false }));
+        ws.close();
+      }
+      return;
+    }
+
+    if (!ws.authenticated) return;
+
+    if (msg.type === 'talking') {
+      for (const client of clients) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: 'talking', state: msg.state }));
+        }
       }
     }
   });
 
   ws.on('close', () => {
-    clients.delete(ws);
-    console.log(`Bağlantı kesildi. Toplam: ${clients.size}`);
-    broadcastInfo();
+    if (ws.authenticated) {
+      clients.delete(ws);
+      console.log(`Bağlantı kesildi. Toplam: ${clients.size}`);
+      broadcastInfo();
+    }
   });
 
-  ws.on('error', (err) => {
-    console.error('WebSocket hatası:', err.message);
-  });
+  ws.on('error', (err) => console.error('WebSocket hatası:', err.message));
 });
 
 function broadcastInfo() {
   const msg = JSON.stringify({ type: 'info', count: clients.size });
   for (const client of clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(msg);
-    }
+    if (client.readyState === WebSocket.OPEN) client.send(msg);
   }
 }
 
 httpServer.listen(PORT, () => {
-  console.log(`Telsiz sunucusu çalışıyor: http://localhost:${PORT}`);
+  console.log(`Telsiz sunucusu: http://localhost:${PORT}`);
+  console.log(`Kanal şifresi: ${CHANNEL_PASSWORD}`);
 });
