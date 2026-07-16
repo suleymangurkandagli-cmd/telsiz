@@ -130,6 +130,9 @@
     <div id="log"></div>
   </div>
 
+  <!-- Gelen ses elementleri buraya eklenir (görünmez ama DOM'da olmalı) -->
+  <div id="audio-container"></div>
+
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
@@ -205,9 +208,20 @@
     const savedPw = localStorage.getItem('telsiz_pw');
     if (savedPw) { pwInput.value = savedPw; setTimeout(tryAuth, 100); }
 
+    // Kalıcı kimlik — yeniden bağlanınca aynı kullanıcı olarak tanınır
+    let myIdentity = localStorage.getItem('telsiz_id');
+    if (!myIdentity) {
+      myIdentity = 'kullanici-' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('telsiz_id', myIdentity);
+    }
+
+    let isConnecting = false;
+
     async function tryAuth() {
+      if (isConnecting) return; // çifte bağlantıyı engelle
       const password = pwInput.value.trim();
       if (!password) return;
+      isConnecting = true;
       authBtn.disabled = true;
       authError.textContent = '';
 
@@ -215,7 +229,7 @@
         const res = await fetch('/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password, identity: 'kullanici-' + Math.random().toString(36).slice(2, 7) }),
+          body: JSON.stringify({ password, identity: myIdentity }),
         });
 
         if (res.status === 401) {
@@ -246,11 +260,45 @@
         authError.textContent = 'Hata: ' + e.message;
         console.error(e);
         authBtn.disabled = false;
+        scheduleReconnect(); // başarısız olursa tekrar dene
+      } finally {
+        isConnecting = false;
+      }
+    }
+
+    const audioContainer = document.getElementById('audio-container');
+
+    // Ses çalma kilidi açılana kadar bekleyenleri başlat (LiveKit resmi yöntemi)
+    function ensureAudioPlayback() {
+      if (room && !room.canPlaybackAudio) {
+        log('Sese izin vermek için ekrana dokun', 'info');
+        const unlock = async () => {
+          try { await room.startAudio(); log('Ses açıldı', 'ok'); } catch (e) {}
+        };
+        document.addEventListener('touchend', unlock, { once: true });
+        document.addEventListener('click', unlock, { once: true });
       }
     }
 
     async function joinRoom(token, url) {
-      room = new Room({ adaptiveStream: false, dynacast: false });
+      // Eski odayı tamamen kapat — hayalet katılımcı kalmasın
+      if (room) {
+        try { await room.disconnect(true); } catch (e) {}
+        room = null;
+      }
+      audioContainer.innerHTML = '';
+
+      room = new Room({
+        adaptiveStream: false,
+        dynacast: false,
+        // Mute'ta track'i öldürme — PTT'de anında aç/kapa için
+        stopLocalTrackOnUnpublish: false,
+        audioCaptureDefaults: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
 
       room.on(RoomEvent.ParticipantConnected,    () => { updateUserCount(); log('Birisi katıldı', 'info'); });
       room.on(RoomEvent.ParticipantDisconnected, () => { updateUserCount(); log('Birisi ayrıldı', 'info'); });
@@ -270,30 +318,32 @@
         btn.disabled = false; log('Yeniden bağlandı', 'ok');
       });
 
-      // Karşı taraf konuşurken gösterge
-      room.on(RoomEvent.TrackMuted,   () => setReceiving(false));
+      // Tarayıcı ses çalmayı bloklarsa haber verir — LiveKit resmi mekanizması
+      room.on(RoomEvent.AudioPlaybackStatusChanged, ensureAudioPlayback);
+
+      // Karşı taraf konuşurken gösterge (sadece uzak ses trackleri)
+      room.on(RoomEvent.TrackMuted, (pub, participant) => {
+        if (participant !== room.localParticipant && pub.kind === Track.Kind.Audio) setReceiving(false);
+      });
       room.on(RoomEvent.TrackUnmuted, (pub, participant) => {
         if (participant !== room.localParticipant && pub.kind === Track.Kind.Audio) setReceiving(true);
       });
+
       room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
         if (track.kind !== Track.Kind.Audio) return;
         const el = track.attach();
         el.setAttribute('playsinline', '');
-        el.setAttribute('autoplay', '');
+        el.autoplay = true;
         el.muted = false;
-        // AudioContext suspend olmuşsa uyandır
+        audioContainer.appendChild(el); // DOM'da olmalı — iOS aksi halde çalmayabilir
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        el.play().catch(() => {
-          // Otomatik oynatma bloklananlar için kullanıcı etkileşimine bekle
-          const resume = () => { el.play().catch(() => {}); document.removeEventListener('touchstart', resume); document.removeEventListener('click', resume); };
-          document.addEventListener('touchstart', resume, { once: true });
-          document.addEventListener('click', resume, { once: true });
-        });
-        setReceiving(true);
-        log('Karşı taraf konuşuyor', 'info');
+        ensureAudioPlayback();
+        if (!pub.isMuted) { setReceiving(true); log('Karşı taraf konuşuyor', 'info'); }
       });
       room.on(RoomEvent.TrackUnsubscribed, (track) => {
-        if (track.kind === Track.Kind.Audio) { track.detach(); setReceiving(false); }
+        if (track.kind !== Track.Kind.Audio) return;
+        track.detach().forEach(el => el.remove());
+        setReceiving(false);
       });
 
       await room.connect(url, token, { autoSubscribe: true, video: false });
@@ -302,17 +352,10 @@
       await room.localParticipant.setMicrophoneEnabled(true);
       await room.localParticipant.setMicrophoneEnabled(false);
 
-      // iOS ses oturumunu canlı tut
+      // iOS ses oturumunu canlı tut + ekran kapanmasın (dinlerken de!)
       startSilentAudio();
-
-      // Ön plana gelince yeniden bağlan
-      document.addEventListener('visibilitychange', async () => {
-        if (document.visibilityState === 'visible' && room.state !== 'connected') {
-          log('Yeniden bağlanıyor...', 'info');
-          const saved = localStorage.getItem('telsiz_pw');
-          if (saved) { pwInput.value = saved; await tryAuth(); }
-        }
-      });
+      acquireWakeLock();
+      ensureAudioPlayback();
 
       authScreen.style.display = 'none';
       mainScreen.style.display = 'flex';
@@ -322,6 +365,27 @@
       updateUserCount();
       log('Kanala katıldı', 'ok');
     }
+
+    // Wake lock — dinleyen tarafın ekranı da açık kalmalı
+    let wakeLock = null;
+    async function acquireWakeLock() {
+      if (!('wakeLock' in navigator)) return;
+      try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+    }
+
+    // Ön plana gelince: wake lock'u geri al, ses context'ini uyandır, gerekirse bağlan
+    // (BİR KEZ kaydedilir — joinRoom içinde değil)
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      acquireWakeLock();
+      if (room && room.state === 'connected') {
+        ensureAudioPlayback();
+      } else {
+        const saved = localStorage.getItem('telsiz_pw');
+        if (saved) { pwInput.value = saved; await tryAuth(); }
+      }
+    });
 
     async function startTalking() {
       if (isTalking || !room) return;
