@@ -234,9 +234,20 @@
 
       room.on(RoomEvent.ParticipantConnected,    () => { updateUserCount(); log('Birisi katıldı', 'info'); });
       room.on(RoomEvent.ParticipantDisconnected, () => { updateUserCount(); log('Birisi ayrıldı', 'info'); });
-      room.on(RoomEvent.Disconnected,            () => {
+      room.on(RoomEvent.Disconnected, () => {
         connStatus.textContent = 'Kesildi'; connStatus.style.color = '#f87171';
-        btn.disabled = true; log('Bağlantı kesildi', 'err');
+        btn.disabled = true; log('Bağlantı kesildi, yeniden bağlanılıyor...', 'err');
+        scheduleReconnect();
+      });
+
+      room.on(RoomEvent.Reconnecting, () => {
+        connStatus.textContent = 'Bağlanıyor...'; connStatus.style.color = '#f5a623';
+        log('Yeniden bağlanıyor...', 'info');
+      });
+
+      room.on(RoomEvent.Reconnected, () => {
+        connStatus.textContent = 'Bağlandı'; connStatus.style.color = '#4ade80';
+        btn.disabled = false; log('Yeniden bağlandı', 'ok');
       });
 
       // Karşı taraf konuşurken gösterge
@@ -300,6 +311,26 @@
       log('Konuşma bitti');
       await room.localParticipant.setMicrophoneEnabled(false);
     }
+
+    // Yeniden bağlanma
+    let reconnectTimer = null;
+    function scheduleReconnect() {
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(async () => {
+        reconnectTimer = null;
+        const saved = localStorage.getItem('telsiz_pw');
+        if (!saved) return;
+        log('Yeniden bağlanma denemesi...', 'info');
+        pwInput.value = saved;
+        await tryAuth();
+      }, 3000);
+    }
+
+    // İnternet gelince otomatik bağlan
+    window.addEventListener('online', () => {
+      log('İnternet bağlandı', 'ok');
+      if (!room || room.state !== 'connected') scheduleReconnect();
+    });
 
     pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(); });
     authBtn.addEventListener('click', tryAuth);
