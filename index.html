@@ -254,7 +254,10 @@
         if (track.kind === Track.Kind.Audio) { track.detach(); setReceiving(false); }
       });
 
-      await room.connect(url, token, { autoSubscribe: true, audio: false, video: false });
+      await room.connect(url, token, { autoSubscribe: true, video: false });
+
+      // Mikrofonu bir kere aç, mute başlat — izin bir defa istenir
+      await room.localParticipant.setMicrophoneEnabled(true);
       await room.localParticipant.setMicrophoneEnabled(false);
 
       // iOS ses oturumunu canlı tut
@@ -284,15 +287,8 @@
       btn.classList.add('active');
       btn.textContent = 'KONUŞUYOR';
       log('Konuşma başladı');
-
-      try {
-        localAudioTrack = await createLocalAudioTrack({ echoCancellation: true, noiseSuppression: true });
-        await room.localParticipant.publishTrack(localAudioTrack);
-        if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(() => {});
-      } catch (e) {
-        log('Mikrofon hatası: ' + e.message, 'err');
-        stopTalking();
-      }
+      await room.localParticipant.setMicrophoneEnabled(true);
+      if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(() => {});
     }
 
     async function stopTalking() {
@@ -301,12 +297,7 @@
       btn.classList.remove('active');
       btn.textContent = 'KONUŞ';
       log('Konuşma bitti');
-
-      if (localAudioTrack) {
-        await room.localParticipant.unpublishTrack(localAudioTrack);
-        localAudioTrack.stop();
-        localAudioTrack = null;
-      }
+      await room.localParticipant.setMicrophoneEnabled(false);
     }
 
     pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(); });
