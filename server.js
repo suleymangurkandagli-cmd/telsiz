@@ -1,23 +1,50 @@
 const http = require('http');
-const WebSocket = require('ws');
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
+const { AccessToken } = require('livekit-server-sdk');
 
-const PORT = process.env.PORT || 3000;
+const PORT             = process.env.PORT             || 3000;
 const CHANNEL_PASSWORD = process.env.CHANNEL_PASSWORD || 'telsiz123';
+const LIVEKIT_URL      = process.env.LIVEKIT_URL      || '';
+const LIVEKIT_API_KEY  = process.env.LIVEKIT_API_KEY  || '';
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
 
-const MIME = {
-  '.html': 'text/html',
-  '.json': 'application/json',
-  '.js':   'application/javascript',
-  '.png':  'image/png',
-};
+const MIME = { '.html': 'text/html', '.json': 'application/json', '.js': 'application/javascript', '.png': 'image/png' };
 
-const httpServer = http.createServer((req, res) => {
-  const url = req.url === '/' ? '/index.html' : req.url;
-  const ext = path.extname(url);
+const server = http.createServer(async (req, res) => {
+  // Token endpoint
+  if (req.method === 'POST' && req.url === '/token') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        const { password, identity } = JSON.parse(body);
+        if (password.trim() !== CHANNEL_PASSWORD.trim()) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'wrong_password' }));
+          return;
+        }
+
+        const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+          identity: identity || 'kullanici-' + Date.now(),
+          ttl: '6h',
+        });
+        token.addGrant({ room: 'telsiz-kanal', roomJoin: true, canPublish: true, canSubscribe: true });
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ token: await token.toJwt(), url: LIVEKIT_URL }));
+      } catch (e) {
+        res.writeHead(500);
+        res.end('Hata');
+      }
+    });
+    return;
+  }
+
+  // Statik dosyalar
+  const url      = req.url === '/' ? '/index.html' : req.url;
+  const ext      = path.extname(url);
   const filePath = path.join(__dirname, url);
-
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'text/plain' });
@@ -25,69 +52,7 @@ const httpServer = http.createServer((req, res) => {
   });
 });
 
-const wss = new WebSocket.Server({ server: httpServer });
-const clients = new Set();
-
-wss.on('connection', (ws) => {
-  ws.authenticated = false;
-
-  ws.on('message', (data, isBinary) => {
-    if (isBinary) {
-      if (!ws.authenticated) return;
-      for (const client of clients) {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(data, { binary: true });
-        }
-      }
-      return;
-    }
-
-    const msg = JSON.parse(data.toString());
-
-    if (msg.type === 'auth') {
-      if (msg.password.trim() === CHANNEL_PASSWORD.trim()) {
-        ws.authenticated = true;
-        clients.add(ws);
-        ws.send(JSON.stringify({ type: 'auth', success: true }));
-        console.log(`Kullanıcı doğrulandı. Toplam: ${clients.size}`);
-        broadcastInfo();
-      } else {
-        ws.send(JSON.stringify({ type: 'auth', success: false }));
-        ws.close();
-      }
-      return;
-    }
-
-    if (!ws.authenticated) return;
-
-    if (msg.type === 'talking') {
-      for (const client of clients) {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'talking', state: msg.state }));
-        }
-      }
-    }
-  });
-
-  ws.on('close', () => {
-    if (ws.authenticated) {
-      clients.delete(ws);
-      console.log(`Bağlantı kesildi. Toplam: ${clients.size}`);
-      broadcastInfo();
-    }
-  });
-
-  ws.on('error', (err) => console.error('WebSocket hatası:', err.message));
-});
-
-function broadcastInfo() {
-  const msg = JSON.stringify({ type: 'info', count: clients.size });
-  for (const client of clients) {
-    if (client.readyState === WebSocket.OPEN) client.send(msg);
-  }
-}
-
-httpServer.listen(PORT, () => {
-  console.log(`Telsiz sunucusu: http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Telsiz (LiveKit) sunucusu: http://localhost:${PORT}`);
   console.log(`Kanal şifresi: ${CHANNEL_PASSWORD}`);
 });
