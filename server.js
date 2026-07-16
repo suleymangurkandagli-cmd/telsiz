@@ -11,7 +11,50 @@ const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
 
 const MIME = { '.html': 'text/html', '.json': 'application/json', '.js': 'application/javascript', '.png': 'image/png' };
 
+// Şipşak fotoğraflar — bellekte tutulur, 5 dakika sonra silinir
+const photos = new Map();
+
 const server = http.createServer(async (req, res) => {
+  // Fotoğraf yükleme
+  if (req.method === 'POST' && req.url === '/photo') {
+    let body = '';
+    let size = 0;
+    req.on('data', d => {
+      size += d.length;
+      if (size > 3 * 1024 * 1024) { req.destroy(); return; } // max 3MB
+      body += d;
+    });
+    req.on('end', () => {
+      try {
+        const { password, image } = JSON.parse(body);
+        if (password.trim() !== CHANNEL_PASSWORD.trim()) {
+          res.writeHead(401); res.end(); return;
+        }
+        if (!image || !image.startsWith('data:image/')) {
+          res.writeHead(400); res.end(); return;
+        }
+        const id = Math.random().toString(36).slice(2, 10);
+        photos.set(id, image);
+        setTimeout(() => photos.delete(id), 5 * 60 * 1000); // 5 dk sonra sil
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ id }));
+      } catch (e) {
+        res.writeHead(500); res.end();
+      }
+    });
+    return;
+  }
+
+  // Fotoğraf indirme
+  if (req.method === 'GET' && req.url.startsWith('/photo/')) {
+    const id = req.url.slice('/photo/'.length);
+    const image = photos.get(id);
+    if (!image) { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ image }));
+    return;
+  }
+
   // Token endpoint
   if (req.method === 'POST' && req.url === '/token') {
     let body = '';

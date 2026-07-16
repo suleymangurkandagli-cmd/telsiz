@@ -101,6 +101,42 @@
     #log p.ok   { color: #4ade80; }
     #log p.err  { color: #f87171; }
     #log p.info { color: #f5a623; }
+
+    #photo-btn {
+      background: #16213e;
+      border: 2px solid #0f3460;
+      border-radius: 12px;
+      color: #a0a0c0;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      padding: 12px 28px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #photo-btn:not(:disabled):hover { border-color: #f5a623; color: #f5a623; }
+    #photo-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #photo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    #photo-overlay.show { display: flex; }
+    #photo-img {
+      max-width: 95vw;
+      max-height: 80vh;
+      border-radius: 12px;
+      box-shadow: 0 0 60px rgba(245,166,35,0.3);
+    }
+    #photo-info { color: #f5a623; font-size: 0.9rem; letter-spacing: 1px; }
+    #photo-timer { color: #6060a0; font-size: 0.8rem; }
   </style>
 </head>
 <body>
@@ -127,8 +163,18 @@
     </div>
     <button id="ptt-btn" disabled>KONUŞ</button>
     <div id="label">Düğmeye basılı tut → konuş</div>
+    <button id="photo-btn" disabled>📷 ŞİPŞAK</button>
     <div id="log"></div>
   </div>
+
+  <!-- Gelen fotoğraf tam ekran gösterimi -->
+  <div id="photo-overlay">
+    <img id="photo-img" alt="" />
+    <div id="photo-info"></div>
+    <div id="photo-timer"></div>
+  </div>
+
+  <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" />
 
   <!-- Gelen ses elementleri buraya eklenir (görünmez ama DOM'da olmalı) -->
   <div id="audio-container"></div>
@@ -305,7 +351,8 @@
       room.on(RoomEvent.ParticipantDisconnected, () => { updateUserCount(); log('Birisi ayrıldı', 'info'); });
       room.on(RoomEvent.Disconnected, () => {
         connStatus.textContent = 'Kesildi'; connStatus.style.color = '#f87171';
-        btn.disabled = true; log('Bağlantı kesildi, yeniden bağlanılıyor...', 'err');
+        btn.disabled = true; photoBtn.disabled = true;
+        log('Bağlantı kesildi, yeniden bağlanılıyor...', 'err');
         scheduleReconnect();
       });
 
@@ -321,6 +368,9 @@
 
       // Tarayıcı ses çalmayı bloklarsa haber verir — LiveKit resmi mekanizması
       room.on(RoomEvent.AudioPlaybackStatusChanged, ensureAudioPlayback);
+
+      // Şipşak fotoğraf bildirimi
+      room.on(RoomEvent.DataReceived, onDataReceived);
 
       // Karşı taraf konuşurken gösterge (sadece uzak ses trackleri)
       room.on(RoomEvent.TrackMuted, (pub, participant) => {
@@ -364,8 +414,110 @@
       connStatus.textContent   = 'Bağlandı';
       connStatus.style.color   = '#4ade80';
       btn.disabled             = false;
+      photoBtn.disabled        = false;
       updateUserCount();
       log('Kanala katıldı', 'ok');
+    }
+
+    // --- Şipşak fotoğraf ---
+    const photoBtn     = $('photo-btn');
+    const photoInput   = $('photo-input');
+    const photoOverlay = $('photo-overlay');
+    const photoImg     = $('photo-img');
+    const photoInfo    = $('photo-info');
+    const photoTimer   = $('photo-timer');
+
+    let overlayTimer = null, countdownTimer = null;
+
+    function showPhoto(dataUrl, senderName) {
+      photoImg.src = dataUrl;
+      photoInfo.textContent = senderName ? `📸 ${senderName}` : '📸 Gönderildi';
+      photoOverlay.classList.add('show');
+      let remaining = 10;
+      photoTimer.textContent = `${remaining} sn`;
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        remaining--;
+        photoTimer.textContent = `${remaining} sn`;
+        if (remaining <= 0) clearInterval(countdownTimer);
+      }, 1000);
+      clearTimeout(overlayTimer);
+      overlayTimer = setTimeout(hidePhoto, 10000);
+    }
+
+    function hidePhoto() {
+      photoOverlay.classList.remove('show');
+      photoImg.src = '';
+      clearTimeout(overlayTimer);
+      clearInterval(countdownTimer);
+    }
+    photoOverlay.addEventListener('click', hidePhoto);
+
+    // Fotoğrafı küçült — hızlı gitsin (max 1000px, JPEG %70)
+    function resizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 1000;
+          let { width, height } = img;
+          if (width > max || height > max) {
+            const scale = max / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+          URL.revokeObjectURL(img.src);
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    photoBtn.addEventListener('click', () => photoInput.click());
+
+    photoInput.addEventListener('change', async () => {
+      const file = photoInput.files[0];
+      photoInput.value = '';
+      if (!file || !room) return;
+      photoBtn.disabled = true;
+      photoBtn.textContent = '📷 GÖNDERİLİYOR...';
+      try {
+        const dataUrl = await resizeImage(file);
+        const res = await fetch('/photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: localStorage.getItem('telsiz_pw'), image: dataUrl }),
+        });
+        if (!res.ok) throw new Error('Sunucu hatası ' + res.status);
+        const { id } = await res.json();
+        // Kanaldakilere haber ver
+        await room.localParticipant.publishData(
+          new TextEncoder().encode(JSON.stringify({ type: 'photo', id })),
+          { reliable: true }
+        );
+        showPhoto(dataUrl, null);
+        log('Şipşak gönderildi', 'ok');
+      } catch (e) {
+        log('Fotoğraf gönderilemedi: ' + e.message, 'err');
+      } finally {
+        photoBtn.disabled = false;
+        photoBtn.textContent = '📷 ŞİPŞAK';
+      }
+    });
+
+    async function onDataReceived(payload, participant) {
+      try {
+        const msg = JSON.parse(new TextDecoder().decode(payload));
+        if (msg.type !== 'photo') return;
+        const res = await fetch('/photo/' + msg.id);
+        if (!res.ok) return;
+        const { image } = await res.json();
+        showPhoto(image, participant ? participant.identity : 'Bilinmeyen');
+        log('Şipşak geldi!', 'info');
+      } catch (e) { /* geçersiz veri */ }
     }
 
     // Krisp gürültü filtresi (LiveKit Cloud özelliği)
