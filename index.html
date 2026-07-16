@@ -287,6 +287,7 @@
         room = null;
       }
       audioContainer.innerHTML = '';
+      krispApplied = false;
 
       room = new Room({
         adaptiveStream: false,
@@ -350,6 +351,7 @@
 
       // Mikrofonu bir kere aç, mute başlat — izin bir defa istenir
       await room.localParticipant.setMicrophoneEnabled(true);
+      await applyKrispFilter();
       await room.localParticipant.setMicrophoneEnabled(false);
 
       // iOS ses oturumunu canlı tut + ekran kapanmasın (dinlerken de!)
@@ -364,6 +366,28 @@
       btn.disabled             = false;
       updateUserCount();
       log('Kanala katıldı', 'ok');
+    }
+
+    // Krisp gürültü filtresi (LiveKit Cloud özelliği)
+    let krispApplied = false;
+    async function applyKrispFilter() {
+      if (krispApplied) return;
+      try {
+        const { KrispNoiseFilter, isKrispNoiseFilterSupported } =
+          await import('https://cdn.jsdelivr.net/npm/@livekit/krisp-noise-filter@0.2.16/+esm');
+        if (!isKrispNoiseFilterSupported()) {
+          log('Krisp bu tarayıcıda desteklenmiyor', 'info');
+          return;
+        }
+        const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+        if (!micPub || !micPub.track) return;
+        await micPub.track.setProcessor(KrispNoiseFilter());
+        krispApplied = true;
+        log('Krisp gürültü filtresi aktif', 'ok');
+      } catch (e) {
+        console.error('Krisp yüklenemedi:', e);
+        log('Gürültü filtresi yüklenemedi, normal ses kullanılıyor', 'info');
+      }
     }
 
     // Wake lock — dinleyen tarafın ekranı da açık kalmalı
