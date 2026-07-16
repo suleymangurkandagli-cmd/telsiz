@@ -263,19 +263,41 @@
       src.start();
     }
 
-    // Gelen ses çalma
-    async function playAudio(arrayBuffer) {
+    // --- Sıralı ses kuyruğu ---
+    let nextPlayTime = 0;
+    let audioChunks = [];
+    let playInterval = null;
+
+    function startAudioQueue() {
+      nextPlayTime = audioCtx.currentTime + 0.05;
+      audioChunks = [];
+      if (playInterval) clearInterval(playInterval);
+      playInterval = setInterval(flushQueue, 300);
+    }
+
+    function stopAudioQueue() {
+      if (playInterval) { clearInterval(playInterval); playInterval = null; }
+      if (audioChunks.length > 0) flushQueue();
+    }
+
+    function queueChunk(arrayBuffer) {
+      audioChunks.push(arrayBuffer);
+    }
+
+    async function flushQueue() {
+      if (audioChunks.length === 0) return;
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      audioChunks = [];
+      const ab = await blob.arrayBuffer();
       try {
-        const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+        const decoded = await audioCtx.decodeAudioData(ab);
         const source = audioCtx.createBufferSource();
         source.buffer = decoded;
 
-        // Hafif distortion — telsiz hissi
         const wave = audioCtx.createWaveShaper();
         wave.curve = makeDistortionCurve(30);
         wave.oversample = '2x';
 
-        // Bant geçiren EQ
         const bp = audioCtx.createBiquadFilter();
         bp.type = 'bandpass';
         bp.frequency.value = 2000;
@@ -284,8 +306,16 @@
         source.connect(wave);
         wave.connect(bp);
         bp.connect(audioCtx.destination);
-        source.start(0);
-      } catch (e) { /* ilk chunk decode edilemeyebilir */ }
+
+        const when = Math.max(nextPlayTime, audioCtx.currentTime + 0.02);
+        source.start(when);
+        nextPlayTime = when + decoded.duration;
+      } catch (e) { /* decode hatası */ }
+    }
+
+    // Gelen ses chunk'ını kuyruğa ekle
+    function playAudio(arrayBuffer) {
+      queueChunk(arrayBuffer);
     }
 
     function makeDistortionCurve(amount) {
@@ -299,11 +329,13 @@
 
     function setReceiving(state) {
       if (state) {
+        startAudioQueue();
         indicator.classList.add('receiving');
         rxLabel.textContent = 'Alıyor...';
         playStatic(0.15);
         log('Karşı taraf konuşuyor', 'info');
       } else {
+        stopAudioQueue();
         playStatic(0.12);
         indicator.classList.remove('receiving');
         rxLabel.textContent = 'Bekleniyor';
@@ -396,7 +428,7 @@
         }
       };
 
-      mediaRecorder.start(100);
+      mediaRecorder.start(250);
       btn.classList.add('active');
       btn.textContent = 'KONUŞUYOR';
       ws.send(JSON.stringify({ type: 'talking', state: true }));
