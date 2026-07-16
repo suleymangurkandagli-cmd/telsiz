@@ -132,6 +132,11 @@
 
     // iOS arka plan ses oturumunu canlı tut
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Her etkileşimde AudioContext'i uyandır
+    const resumeCtx = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); };
+    document.addEventListener('touchstart', resumeCtx);
+    document.addEventListener('click', resumeCtx);
     let silentSource = null;
     function startSilentAudio() {
       if (silentSource) return;
@@ -256,11 +261,21 @@
         if (participant !== room.localParticipant && pub.kind === Track.Kind.Audio) setReceiving(true);
       });
       room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
-        if (track.kind === Track.Kind.Audio) {
-          track.attach(); // gelen sesi otomatik çal
-          setReceiving(true);
-          log('Karşı taraf konuşuyor', 'info');
-        }
+        if (track.kind !== Track.Kind.Audio) return;
+        const el = track.attach();
+        el.setAttribute('playsinline', '');
+        el.setAttribute('autoplay', '');
+        el.muted = false;
+        // AudioContext suspend olmuşsa uyandır
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        el.play().catch(() => {
+          // Otomatik oynatma bloklananlar için kullanıcı etkileşimine bekle
+          const resume = () => { el.play().catch(() => {}); document.removeEventListener('touchstart', resume); document.removeEventListener('click', resume); };
+          document.addEventListener('touchstart', resume, { once: true });
+          document.addEventListener('click', resume, { once: true });
+        });
+        setReceiving(true);
+        log('Karşı taraf konuşuyor', 'info');
       });
       room.on(RoomEvent.TrackUnsubscribed, (track) => {
         if (track.kind === Track.Kind.Audio) { track.detach(); setReceiving(false); }
