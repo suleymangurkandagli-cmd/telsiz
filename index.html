@@ -131,14 +131,15 @@
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
     // iOS arka plan ses oturumunu canlı tut
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let silentSource = null;
-    function startSilentAudio(ctx) {
+    function startSilentAudio() {
       if (silentSource) return;
-      const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
       function loop() {
-        silentSource = ctx.createBufferSource();
+        silentSource = audioCtx.createBufferSource();
         silentSource.buffer = buf;
-        silentSource.connect(ctx.destination);
+        silentSource.connect(audioCtx.destination);
         silentSource.onended = loop;
         silentSource.start();
       }
@@ -261,7 +262,7 @@
       await room.localParticipant.setMicrophoneEnabled(false);
 
       // iOS ses oturumunu canlı tut
-      startSilentAudio(audioCtx);
+      startSilentAudio();
 
       // Ön plana gelince yeniden bağlan
       document.addEventListener('visibilitychange', async () => {
