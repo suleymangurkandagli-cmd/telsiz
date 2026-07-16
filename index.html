@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telsiz</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 24px;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      letter-spacing: 4px;
+      color: #f5a623;
+      text-transform: uppercase;
+    }
+
+    #status-bar {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 0.9rem;
+      color: #a0a0c0;
+      text-align: center;
+      min-width: 260px;
+    }
+
+    #status-bar span {
+      font-weight: bold;
+      color: #f5a623;
+    }
+
+    #indicator {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #2a2a4a, #0d0d1a);
+      border: 4px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: box-shadow 0.2s, border-color 0.2s;
+      font-size: 0.85rem;
+      color: #7070a0;
+    }
+
+    #indicator.receiving {
+      border-color: #4ade80;
+      box-shadow: 0 0 40px rgba(74, 222, 128, 0.5);
+      color: #4ade80;
+    }
+
+    #indicator svg {
+      width: 56px;
+      height: 56px;
+      fill: #4a4a7a;
+      transition: fill 0.2s;
+    }
+
+    #indicator.receiving svg {
+      fill: #4ade80;
+    }
+
+    #ptt-btn {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: none;
+      background: radial-gradient(circle at 40% 35%, #e05c00, #a33c00);
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+      transition: transform 0.1s, box-shadow 0.1s;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    #ptt-btn:active,
+    #ptt-btn.active {
+      transform: scale(0.93);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 2px 6px rgba(0,0,0,0.4);
+      background: radial-gradient(circle at 40% 35%, #ff7a20, #c04a00);
+    }
+
+    #ptt-btn:disabled {
+      background: radial-gradient(circle at 40% 35%, #444, #222);
+      cursor: not-allowed;
+    }
+
+    #label {
+      font-size: 0.8rem;
+      color: #6060a0;
+      text-align: center;
+    }
+
+    #log {
+      background: #0d1b2a;
+      border: 1px solid #1a3050;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: #6080a0;
+      width: 300px;
+      max-height: 100px;
+      overflow-y: auto;
+      font-family: monospace;
+    }
+
+    #log p { margin-bottom: 3px; }
+    #log p.ok { color: #4ade80; }
+    #log p.err { color: #f87171; }
+    #log p.info { color: #f5a623; }
+  </style>
+</head>
+<body>
+  <h1>📻 Telsiz</h1>
+
+  <div id="status-bar">
+    Bağlantı: <span id="conn-status">Bağlanıyor...</span> &nbsp;|&nbsp;
+    Kanaldaki kullanıcı: <span id="user-count">0</span>
+  </div>
+
+  <div id="indicator">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/>
+    </svg>
+    <span id="rx-label">Bekleniyor</span>
+  </div>
+
+  <button id="ptt-btn" disabled>KONUŞ</button>
+  <div id="label">Düğmeye basılı tut → konuş</div>
+
+  <div id="log"></div>
+
+  <script>
+    const btn = document.getElementById('ptt-btn');
+    const connStatus = document.getElementById('conn-status');
+    const userCount = document.getElementById('user-count');
+    const indicator = document.getElementById('indicator');
+    const rxLabel = document.getElementById('rx-label');
+    const logEl = document.getElementById('log');
+
+    function log(msg, cls = '') {
+      const p = document.createElement('p');
+      if (cls) p.className = cls;
+      p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.prepend(p);
+    }
+
+    // --- WebSocket ---
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}`);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = () => {
+      connStatus.textContent = 'Bağlandı';
+      connStatus.style.color = '#4ade80';
+      btn.disabled = false;
+      log('Sunucuya bağlandı', 'ok');
+    };
+
+    ws.onclose = () => {
+      connStatus.textContent = 'Kesildi';
+      connStatus.style.color = '#f87171';
+      btn.disabled = true;
+      log('Bağlantı kesildi', 'err');
+    };
+
+    ws.onerror = () => log('WebSocket hatası', 'err');
+
+    ws.onmessage = async (event) => {
+      if (typeof event.data === 'string') {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'info') {
+          userCount.textContent = msg.count;
+        } else if (msg.type === 'talking') {
+          setReceiving(msg.state);
+        }
+        return;
+      }
+      // Binary: ses verisi geldi → çal
+      playAudio(event.data);
+    };
+
+    // --- Ses çalma ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    async function playAudio(arrayBuffer) {
+      try {
+        const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+        const source = audioCtx.createBufferSource();
+        source.buffer = decoded;
+        source.connect(audioCtx.destination);
+        source.start(0);
+      } catch (e) {
+        // ilk chunk decode edilemeyebilir, sessizce geç
+      }
+    }
+
+    function setReceiving(state) {
+      if (state) {
+        indicator.classList.add('receiving');
+        rxLabel.textContent = 'Alıyor...';
+        log('Karşı taraf konuşuyor', 'info');
+      } else {
+        indicator.classList.remove('receiving');
+        rxLabel.textContent = 'Bekleniyor';
+      }
+    }
+
+    // --- Mikrofon & kayıt ---
+    let mediaRecorder = null;
+    let stream = null;
+
+    async function startTalking() {
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      } catch (e) {
+        log('Mikrofon erişimi reddedildi: ' + e.message, 'err');
+        return;
+      }
+
+      // Tarayıcının desteklediği codec'i seç
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+      ];
+      const mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+      mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+          ws.send(e.data);
+        }
+      };
+
+      mediaRecorder.start(100); // her 100ms'de chunk gönder
+      btn.classList.add('active');
+      btn.textContent = 'KONUŞUYOR';
+      ws.send(JSON.stringify({ type: 'talking', state: true }));
+      log('Konuşma başladı');
+    }
+
+    function stopTalking() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      mediaRecorder = null;
+      btn.classList.remove('active');
+      btn.textContent = 'KONUŞ';
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'talking', state: false }));
+      }
+      log('Konuşma bitti');
+    }
+
+    // Fare / dokunmatik olayları
+    btn.addEventListener('mousedown', startTalking);
+    btn.addEventListener('mouseup', stopTalking);
+    btn.addEventListener('mouseleave', () => { if (mediaRecorder) stopTalking(); });
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); });
+    btn.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
+
+    // Boşluk tuşu desteği
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !e.repeat && !btn.disabled) { e.preventDefault(); startTalking(); }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') { e.preventDefault(); if (mediaRecorder) stopTalking(); }
+    });
+  </script>
+</body>
+</html>
