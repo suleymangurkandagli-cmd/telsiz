@@ -102,41 +102,204 @@
     #log p.err  { color: #f87171; }
     #log p.info { color: #f5a623; }
 
-    #photo-btn {
-      background: #16213e;
-      border: 2px solid #0f3460;
-      border-radius: 12px;
-      color: #a0a0c0;
+    /* --- Kamera butonu --- */
+    #snap-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: transparent;
+      border: 1px solid #1e2540;
+      border-radius: 8px;
+      color: #5a6a8a;
       cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: bold;
-      letter-spacing: 1px;
-      padding: 12px 28px;
-      transition: border-color 0.2s, color 0.2s;
+      font-size: 0.78rem;
+      font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 9px 18px;
+      transition: border-color 0.15s, color 0.15s;
     }
-    #photo-btn:not(:disabled):hover { border-color: #f5a623; color: #f5a623; }
-    #photo-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #snap-btn:not(:disabled):hover { border-color: #f5a623; color: #f5a623; }
+    #snap-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    #snap-btn svg { width: 15px; height: 15px; fill: currentColor; flex-shrink: 0; }
 
-    #photo-overlay {
+    /* --- Galeri --- */
+    #gallery-section {
+      width: 100%;
+      max-width: 360px;
       display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #gallery-section.visible { display: flex; }
+
+    .gallery-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2px;
+    }
+    .gallery-label {
+      font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #2e3a52;
+    }
+    .gallery-count {
+      font-family: -apple-system, 'SF Mono', 'Menlo', monospace;
+      font-size: 0.65rem;
+      color: #2e3a52;
+    }
+
+    #gallery-scroll {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    #gallery-scroll::-webkit-scrollbar { display: none; }
+
+    .thumb-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 72px;
+      cursor: pointer;
+    }
+    .thumb {
+      width: 72px;
+      height: 72px;
+      border-radius: 4px;
+      object-fit: cover;
+      display: block;
+      border: 1px solid #1a2236;
+      transition: opacity 0.15s;
+    }
+    .thumb-wrap:hover .thumb { opacity: 0.85; }
+    .thumb-wrap.unread::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: #f5a623;
+      border-radius: 4px 4px 0 0;
+      z-index: 1;
+    }
+    .thumb-sender {
+      position: absolute;
+      bottom: 4px; right: 4px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.72);
+      border: 1px solid rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      font-family: -apple-system, system-ui, sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      color: #c8d0e0;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .thumb-time {
+      font-family: -apple-system, 'SF Mono', 'Menlo', monospace;
+      font-size: 0.58rem;
+      color: #2e3a52;
+      text-align: center;
+      margin-top: 4px;
+      letter-spacing: 0.04em;
+    }
+    .thumb-wrap.unread .thumb-time { color: #f5a623; }
+
+    /* --- Tam ekran viewer --- */
+    #viewer {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.95);
-      z-index: 1000;
+      background: #000;
+      z-index: 2000;
+      display: flex;
       flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    #viewer.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #viewer-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 52px 20px 12px;
+      flex-shrink: 0;
+    }
+    #viewer-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #viewer-sender {
+      font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: #c8d0e0;
+    }
+    #viewer-time {
+      font-family: -apple-system, 'SF Mono', 'Menlo', monospace;
+      font-size: 0.65rem;
+      color: #3a4a62;
+      letter-spacing: 0.08em;
+    }
+    #viewer-close {
+      width: 32px; height: 32px;
+      border: none;
+      background: rgba(255,255,255,0.06);
+      border-radius: 50%;
+      color: #6080a0;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s;
+    }
+    #viewer-close:hover { background: rgba(255,255,255,0.12); color: #c8d0e0; }
+
+    #viewer-photo-wrap {
+      flex: 1;
+      display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      padding: 8px 16px;
+      cursor: pointer;
     }
-    #photo-overlay.show { display: flex; }
-    #photo-img {
-      max-width: 95vw;
-      max-height: 80vh;
-      border-radius: 12px;
-      box-shadow: 0 0 60px rgba(245,166,35,0.3);
+    #viewer-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 3px;
     }
-    #photo-info { color: #f5a623; font-size: 0.9rem; letter-spacing: 1px; }
-    #photo-timer { color: #6060a0; font-size: 0.8rem; }
+
+    #viewer-progress-wrap {
+      padding: 16px 20px 36px;
+      flex-shrink: 0;
+    }
+    #viewer-progress-track {
+      width: 100%;
+      height: 1px;
+      background: #1a2236;
+      position: relative;
+      overflow: hidden;
+    }
+    #viewer-progress-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 100%;
+      background: #f5a623;
+      transform-origin: left center;
+      transition: transform linear;
+    }
   </style>
 </head>
 <body>
@@ -163,15 +326,40 @@
     </div>
     <button id="ptt-btn" disabled>KONUŞ</button>
     <div id="label">Düğmeye basılı tut → konuş</div>
-    <button id="photo-btn" disabled>📷 ŞİPŞAK</button>
+
+    <button id="snap-btn" disabled>
+      <svg viewBox="0 0 24 24"><path d="M12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4zm0-8.4A5.2 5.2 0 1 0 12 17.2 5.2 5.2 0 0 0 12 6.8zM9 2L7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9z"/></svg>
+      Şipşak
+    </button>
+
+    <div id="gallery-section">
+      <div class="gallery-header">
+        <span class="gallery-label">Fotoğraflar</span>
+        <span class="gallery-count" id="gallery-count">0</span>
+      </div>
+      <div id="gallery-scroll"></div>
+    </div>
+
     <div id="log"></div>
   </div>
 
-  <!-- Gelen fotoğraf tam ekran gösterimi -->
-  <div id="photo-overlay">
-    <img id="photo-img" alt="" />
-    <div id="photo-info"></div>
-    <div id="photo-timer"></div>
+  <!-- Tam ekran viewer -->
+  <div id="viewer">
+    <div id="viewer-bar">
+      <div id="viewer-meta">
+        <div id="viewer-sender"></div>
+        <div id="viewer-time"></div>
+      </div>
+      <button id="viewer-close">✕</button>
+    </div>
+    <div id="viewer-photo-wrap">
+      <img id="viewer-img" alt="" />
+    </div>
+    <div id="viewer-progress-wrap">
+      <div id="viewer-progress-track">
+        <div id="viewer-progress-fill"></div>
+      </div>
+    </div>
   </div>
 
   <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" />
@@ -351,7 +539,7 @@
       room.on(RoomEvent.ParticipantDisconnected, () => { updateUserCount(); log('Birisi ayrıldı', 'info'); });
       room.on(RoomEvent.Disconnected, () => {
         connStatus.textContent = 'Kesildi'; connStatus.style.color = '#f87171';
-        btn.disabled = true; photoBtn.disabled = true;
+        btn.disabled = true; snapBtn.disabled = true;
         log('Bağlantı kesildi, yeniden bağlanılıyor...', 'err');
         scheduleReconnect();
       });
@@ -414,61 +602,136 @@
       connStatus.textContent   = 'Bağlandı';
       connStatus.style.color   = '#4ade80';
       btn.disabled             = false;
-      photoBtn.disabled        = false;
+      snapBtn.disabled         = false;
       updateUserCount();
       log('Kanala katıldı', 'ok');
     }
 
-    // --- Şipşak fotoğraf ---
-    const photoBtn     = $('photo-btn');
-    const photoInput   = $('photo-input');
-    const photoOverlay = $('photo-overlay');
-    const photoImg     = $('photo-img');
-    const photoInfo    = $('photo-info');
-    const photoTimer   = $('photo-timer');
+    // --- Şipşak fotoğraf & galeri ---
+    const snapBtn       = $('snap-btn');
+    const photoInput    = $('photo-input');
+    const gallerySection = $('gallery-section');
+    const galleryScroll = $('gallery-scroll');
+    const galleryCount  = $('gallery-count');
+    const viewer        = $('viewer');
+    const viewerImg     = $('viewer-img');
+    const viewerSender  = $('viewer-sender');
+    const viewerTime    = $('viewer-time');
+    const viewerClose   = $('viewer-close');
+    const viewerFill    = $('viewer-progress-fill');
 
-    let overlayTimer = null, countdownTimer = null;
+    // Oturum arşivi (sayfa kapanınca sıfırlanır)
+    const photoGallery = []; // { dataUrl, sender, ts }
+    let viewerTimer = null;
 
-    function showPhoto(dataUrl, senderName) {
-      photoImg.src = dataUrl;
-      photoInfo.textContent = senderName ? `📸 ${senderName}` : '📸 Gönderildi';
-      photoOverlay.classList.add('show');
-      let remaining = 10;
-      photoTimer.textContent = `${remaining} sn`;
-      clearInterval(countdownTimer);
-      countdownTimer = setInterval(() => {
-        remaining--;
-        photoTimer.textContent = `${remaining} sn`;
-        if (remaining <= 0) clearInterval(countdownTimer);
-      }, 1000);
-      clearTimeout(overlayTimer);
-      overlayTimer = setTimeout(hidePhoto, 10000);
+    function formatTime(date) {
+      return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
     }
 
-    function hidePhoto() {
-      photoOverlay.classList.remove('show');
-      photoImg.src = '';
-      clearTimeout(overlayTimer);
-      clearInterval(countdownTimer);
+    function senderInitial(name) {
+      if (!name) return '?';
+      const clean = name.replace(/^kullanici-/i, '');
+      return clean.charAt(0).toUpperCase();
     }
-    photoOverlay.addEventListener('click', hidePhoto);
 
-    // Fotoğrafı küçült — hızlı gitsin (max 1000px, JPEG %70)
+    function renderGallery() {
+      galleryScroll.innerHTML = '';
+      galleryCount.textContent = photoGallery.length;
+      if (photoGallery.length === 0) {
+        gallerySection.classList.remove('visible');
+        return;
+      }
+      gallerySection.classList.add('visible');
+      // En yeni en solda
+      [...photoGallery].reverse().forEach((item, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb-wrap' + (item.unread ? ' unread' : '');
+
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        img.src = item.dataUrl;
+        img.alt = '';
+
+        const badge = document.createElement('div');
+        badge.className = 'thumb-sender';
+        badge.textContent = senderInitial(item.sender);
+
+        const time = document.createElement('div');
+        time.className = 'thumb-time';
+        time.textContent = formatTime(item.ts);
+
+        wrap.appendChild(img);
+        wrap.appendChild(badge);
+        wrap.appendChild(time);
+        wrap.addEventListener('click', () => {
+          item.unread = false;
+          wrap.classList.remove('unread');
+          openViewer(item.dataUrl, item.sender, item.ts);
+        });
+        galleryScroll.appendChild(wrap);
+      });
+    }
+
+    function addToGallery(dataUrl, sender, autoOpen = false) {
+      const item = { dataUrl, sender, ts: new Date(), unread: autoOpen };
+      photoGallery.push(item);
+      renderGallery();
+      if (autoOpen) {
+        item.unread = false;
+        openViewer(dataUrl, sender, item.ts);
+      }
+    }
+
+    function openViewer(dataUrl, sender, ts) {
+      viewerImg.src = dataUrl;
+      viewerSender.textContent = sender
+        ? sender.replace(/^kullanici-/i, '') || sender
+        : 'Sen';
+      viewerTime.textContent = formatTime(ts);
+
+      // Progress bar — 10 sn
+      viewerFill.style.transition = 'none';
+      viewerFill.style.transform  = 'scaleX(1)';
+      viewer.classList.add('open');
+
+      // Animasyonu bir sonraki frame'de başlat
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        viewerFill.style.transition = 'transform 10s linear';
+        viewerFill.style.transform  = 'scaleX(0)';
+      }));
+
+      clearTimeout(viewerTimer);
+      viewerTimer = setTimeout(closeViewer, 10000);
+    }
+
+    function closeViewer() {
+      viewer.classList.remove('open');
+      clearTimeout(viewerTimer);
+      viewerFill.style.transition = 'none';
+      viewerFill.style.transform  = 'scaleX(0)';
+      // Görüntüyü temizle — bellek
+      setTimeout(() => { if (!viewer.classList.contains('open')) viewerImg.src = ''; }, 300);
+    }
+
+    viewerClose.addEventListener('click', e => { e.stopPropagation(); closeViewer(); });
+    $('viewer-photo-wrap').addEventListener('click', closeViewer);
+
+    // Fotoğrafı küçült — hızlı gitsin (max 1200px, JPEG %75)
     function resizeImage(file) {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-          const max = 1000;
+          const max = 1200;
           let { width, height } = img;
           if (width > max || height > max) {
             const scale = max / Math.max(width, height);
-            width = Math.round(width * scale);
+            width  = Math.round(width  * scale);
             height = Math.round(height * scale);
           }
           const canvas = document.createElement('canvas');
           canvas.width = width; canvas.height = height;
           canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
           URL.revokeObjectURL(img.src);
         };
         img.onerror = reject;
@@ -476,14 +739,13 @@
       });
     }
 
-    photoBtn.addEventListener('click', () => photoInput.click());
+    snapBtn.addEventListener('click', () => photoInput.click());
 
     photoInput.addEventListener('change', async () => {
       const file = photoInput.files[0];
       photoInput.value = '';
       if (!file || !room) return;
-      photoBtn.disabled = true;
-      photoBtn.textContent = '📷 GÖNDERİLİYOR...';
+      snapBtn.disabled = true;
       try {
         const dataUrl = await resizeImage(file);
         const res = await fetch('/photo', {
@@ -493,18 +755,16 @@
         });
         if (!res.ok) throw new Error('Sunucu hatası ' + res.status);
         const { id } = await res.json();
-        // Kanaldakilere haber ver
         await room.localParticipant.publishData(
           new TextEncoder().encode(JSON.stringify({ type: 'photo', id })),
           { reliable: true }
         );
-        showPhoto(dataUrl, null);
+        addToGallery(dataUrl, null, true); // gönderen de görür
         log('Şipşak gönderildi', 'ok');
       } catch (e) {
         log('Fotoğraf gönderilemedi: ' + e.message, 'err');
       } finally {
-        photoBtn.disabled = false;
-        photoBtn.textContent = '📷 ŞİPŞAK';
+        snapBtn.disabled = false;
       }
     });
 
@@ -515,7 +775,8 @@
         const res = await fetch('/photo/' + msg.id);
         if (!res.ok) return;
         const { image } = await res.json();
-        showPhoto(image, participant ? participant.identity : 'Bilinmeyen');
+        const sender = participant ? participant.identity : 'Bilinmeyen';
+        addToGallery(image, sender, true); // otomatik aç
         log('Şipşak geldi!', 'info');
       } catch (e) { /* geçersiz veri */ }
     }
