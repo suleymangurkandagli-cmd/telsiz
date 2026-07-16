@@ -130,6 +130,21 @@
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
+    // iOS arka plan ses oturumunu canlı tut
+    let silentSource = null;
+    function startSilentAudio(ctx) {
+      if (silentSource) return;
+      const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      function loop() {
+        silentSource = ctx.createBufferSource();
+        silentSource.buffer = buf;
+        silentSource.connect(ctx.destination);
+        silentSource.onended = loop;
+        silentSource.start();
+      }
+      loop();
+    }
+
     const $ = id => document.getElementById(id);
     const authScreen = $('auth-screen'), mainScreen = $('main-screen');
     const pwInput = $('pw-input'), authBtn = $('auth-btn'), authError = $('auth-error');
@@ -240,8 +255,19 @@
       });
 
       await room.connect(url, token, { autoSubscribe: true, audio: false, video: false });
-      // Mikrofonu kesinlikle kapat
       await room.localParticipant.setMicrophoneEnabled(false);
+
+      // iOS ses oturumunu canlı tut
+      startSilentAudio(audioCtx);
+
+      // Ön plana gelince yeniden bağlan
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && room.state !== 'connected') {
+          log('Yeniden bağlanıyor...', 'info');
+          const saved = localStorage.getItem('telsiz_pw');
+          if (saved) { pwInput.value = saved; await tryAuth(); }
+        }
+      });
 
       authScreen.style.display = 'none';
       mainScreen.style.display = 'flex';
