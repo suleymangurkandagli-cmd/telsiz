@@ -239,7 +239,9 @@
         if (track.kind === Track.Kind.Audio) { track.detach(); setReceiving(false); }
       });
 
-      await room.connect(url, token, { autoSubscribe: true });
+      await room.connect(url, token, { autoSubscribe: true, audio: false, video: false });
+      // Mikrofonu kesinlikle kapat
+      await room.localParticipant.setMicrophoneEnabled(false);
 
       authScreen.style.display = 'none';
       mainScreen.style.display = 'flex';
