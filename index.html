@@ -210,6 +210,18 @@
       letter-spacing: 0.04em;
     }
     .thumb-wrap.unread .thumb-time { color: #f5a623; }
+    .thumb-del {
+      position: absolute; top: 3px; right: 3px;
+      width: 18px; height: 18px;
+      border: none; border-radius: 50%;
+      background: rgba(0,0,0,0.55);
+      color: #c8d0e0; font-size: 14px; line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0; opacity: 0.6;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .thumb-del:hover, .thumb-del:active { opacity: 1; background: rgba(200,50,50,0.75); }
 
     /* --- Tam ekran viewer --- */
     #viewer {
@@ -620,8 +632,37 @@
     const viewerClose   = $('viewer-close');
     const viewerFill    = $('viewer-progress-fill');
 
-    // Oturum arşivi (sayfa kapanınca sıfırlanır)
-    const photoGallery = []; // { dataUrl, sender, ts }
+    const GALLERY_KEY = 'telsiz_gallery';
+
+    // localStorage'dan yükle
+    function loadGallery() {
+      try {
+        const raw = localStorage.getItem(GALLERY_KEY);
+        if (!raw) return [];
+        return JSON.parse(raw).map(item => ({
+          ...item,
+          ts: new Date(item.ts),
+          unread: false,
+        }));
+      } catch { return []; }
+    }
+
+    // localStorage'a kaydet (hata olursa sessizce geç — quota aşımı)
+    function saveGallery() {
+      try {
+        localStorage.setItem(GALLERY_KEY, JSON.stringify(
+          photoGallery.map(item => ({ dataUrl: item.dataUrl, sender: item.sender, ts: item.ts.toISOString() }))
+        ));
+      } catch (e) {
+        // Depolama doluysa en eski fotoğrafı at, tekrar dene
+        if (photoGallery.length > 1) {
+          photoGallery.shift();
+          saveGallery();
+        }
+      }
+    }
+
+    const photoGallery = loadGallery(); // { dataUrl, sender, ts, unread }
     let viewerTimer = null;
 
     function formatTime(date) {
@@ -634,6 +675,14 @@
       return clean.charAt(0).toUpperCase();
     }
 
+    function deleteFromGallery(item) {
+      const idx = photoGallery.indexOf(item);
+      if (idx === -1) return;
+      photoGallery.splice(idx, 1);
+      saveGallery();
+      renderGallery();
+    }
+
     function renderGallery() {
       galleryScroll.innerHTML = '';
       galleryCount.textContent = photoGallery.length;
@@ -643,7 +692,7 @@
       }
       gallerySection.classList.add('visible');
       // En yeni en solda
-      [...photoGallery].reverse().forEach((item, i) => {
+      [...photoGallery].reverse().forEach((item) => {
         const wrap = document.createElement('div');
         wrap.className = 'thumb-wrap' + (item.unread ? ' unread' : '');
 
@@ -656,12 +705,19 @@
         badge.className = 'thumb-sender';
         badge.textContent = senderInitial(item.sender);
 
+        const del = document.createElement('button');
+        del.className = 'thumb-del';
+        del.textContent = '×';
+        del.title = 'Sil';
+        del.addEventListener('click', e => { e.stopPropagation(); deleteFromGallery(item); });
+
         const time = document.createElement('div');
         time.className = 'thumb-time';
         time.textContent = formatTime(item.ts);
 
         wrap.appendChild(img);
         wrap.appendChild(badge);
+        wrap.appendChild(del);
         wrap.appendChild(time);
         wrap.addEventListener('click', () => {
           item.unread = false;
@@ -672,9 +728,13 @@
       });
     }
 
+    // Galeri başlangıçta yüklüyse göster
+    if (photoGallery.length > 0) renderGallery();
+
     function addToGallery(dataUrl, sender, autoOpen = false) {
       const item = { dataUrl, sender, ts: new Date(), unread: autoOpen };
       photoGallery.push(item);
+      saveGallery();
       renderGallery();
       if (autoOpen) {
         item.unread = false;
