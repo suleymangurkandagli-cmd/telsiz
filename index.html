@@ -411,9 +411,13 @@
       }
     });
 
+    let muteTimer = null;
+
     async function startTalking() {
       if (isTalking || !room) return;
       isTalking = true;
+      // Bekleyen kapatma varsa iptal et — hemen tekrar basıldı
+      if (muteTimer) { clearTimeout(muteTimer); muteTimer = null; }
       btn.classList.add('active');
       btn.textContent = 'KONUŞUYOR';
       log('Konuşma başladı');
@@ -427,7 +431,12 @@
       btn.classList.remove('active');
       btn.textContent = 'KONUŞ';
       log('Konuşma bitti');
-      await room.localParticipant.setMicrophoneEnabled(false);
+      // Son kelime kesilmesin: mikrofonu 700ms gecikmeyle kapat (telsiz kuyruk süresi)
+      if (muteTimer) clearTimeout(muteTimer);
+      muteTimer = setTimeout(async () => {
+        muteTimer = null;
+        if (!isTalking && room) await room.localParticipant.setMicrophoneEnabled(false);
+      }, 700);
     }
 
     // Yeniden bağlanma
