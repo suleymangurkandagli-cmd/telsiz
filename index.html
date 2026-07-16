@@ -179,23 +179,7 @@
     // --- Web Audio ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    // Cızırtı sesi
-    function playStatic(duration = 0.18) {
-      const bufSize = audioCtx.sampleRate * duration;
-      const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
-      const src  = audioCtx.createBufferSource();
-      src.buffer = buf;
-      const bp = audioCtx.createBiquadFilter();
-      bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
-      const gain = audioCtx.createGain();
-      gain.gain.setValueAtTime(0, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.03);
-      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
-      src.connect(bp); bp.connect(gain); gain.connect(audioCtx.destination);
-      src.start();
-    }
+    function playStatic() {}
 
     function makeDistortionCurve(amount) {
       const n = 256, curve = new Float32Array(n);
