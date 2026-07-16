@@ -27,12 +27,14 @@ const server = http.createServer(async (req, res) => {
 
         const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
           identity: identity || 'kullanici-' + Date.now(),
-          ttl: '6h',
+          ttl: 21600, // 6 saat (saniye cinsinden)
         });
         token.addGrant({ room: 'telsiz-kanal', roomJoin: true, canPublish: true, canSubscribe: true });
 
+        const jwt = await token.toJwt();
+        console.log('Token üretildi, URL:', LIVEKIT_URL);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ token: await token.toJwt(), url: LIVEKIT_URL }));
+        res.end(JSON.stringify({ token: jwt, url: LIVEKIT_URL }));
       } catch (e) {
         res.writeHead(500);
         res.end('Hata');

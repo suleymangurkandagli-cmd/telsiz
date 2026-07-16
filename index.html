@@ -192,8 +192,14 @@
           authBtn.disabled = false;
           return;
         }
-        const { token, url } = await res.json();
-        await joinRoom(token, url);
+        const data = await res.json();
+        console.log('Token alındı, URL:', data.url);
+        if (!data.url || !data.token) {
+          authError.textContent = 'Sunucu token döndürmedi. Env var eksik olabilir.';
+          authBtn.disabled = false;
+          return;
+        }
+        await joinRoom(data.token, data.url);
       } catch (e) {
         authError.textContent = 'Hata: ' + e.message;
         console.error(e);
